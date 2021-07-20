@@ -17,6 +17,8 @@ import os.path
 import time
 from threading import Event
 import hash
+import pass_check
+import csv
 # import matplotlib
 # matplotlib.use('Agg')
 
@@ -26,6 +28,13 @@ import hash
 # if os.environ.get('DISPLAY', '') == '':
 #     print('no display found. Using :0.0')
 #     os.environ.__setitem__('DISPLAY', ':0.0')
+
+autocompleteList = []
+with open('user.csv', 'r') as f:
+    file = csv.DictReader(f)
+    autocompleteList = []
+    for col in file:
+        autocompleteList.append(col['Username'])
 
 
 def gen_key(master_pass):
@@ -256,9 +265,9 @@ class AutocompleteEntry(ttk.Entry):
         return [w for w in self.autocompleteList if self.matchesFunction(self.var.get(), w)]
 
 
-autocompleteList = ['Gmail', 'YouTube', 'Facebook',
-                    'Zoom', 'Reddit', 'Netflix', 'Microsoft', 'Amazon', 'Instagram', 'Google', 'Twitch', 'Twitter', 'Apple Inc', 'Adobe', 'Linkedin',
-                    'Hotstar', 'Quora', 'Dropbox']
+# autocompleteList = ['Gmail', 'YouTube', 'Facebook',
+#                     'Zoom', 'Reddit', 'Netflix', 'Microsoft', 'Amazon', 'Instagram', 'Google', 'Twitch', 'Twitter', 'Apple Inc', 'Adobe', 'Linkedin',
+#                     'Hotstar', 'Quora', 'Dropbox']
 
 
 def matches(fieldValue, acListEntry):
@@ -274,13 +283,24 @@ def is_present(arr, entry):
 
 
 def save_pass():
-
+    global autocompleteList
     website = website_entry.get()
+    row = [f'{website}']
+
     if(not (is_present(autocompleteList, website))):
         autocompleteList.append(website)
+        with open('user.csv', 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
 
     email = email_entry.get()
     password = password_entry.get()
+    count = pass_check.pwned_api_check(password)
+    question = 0
+    if count:
+        question = messagebox.askquestion(
+            title="Warning", message=f"This password was found {count} times.Do you wish to proceed ?")
+
     new_data = {
         website: {
             "username": email,
@@ -291,7 +311,7 @@ def save_pass():
     if len(website) == 0 or len(password) == 0:
         messagebox.showinfo(
             title="Oops", message="Please don't leave any fields empty!")
-    else:
+    elif question == 'yes' or count == 0:
         is_ok = messagebox.askokcancel(title=f"{website}", message=f"These are the details entered:\n Email: {email}"
                                        f"\n Password: {password} \n Is it ok to save?")
 
